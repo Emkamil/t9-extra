@@ -131,10 +131,7 @@
     <div class="container">
 
         <div class="card">
-            <h2>Kryptograficzny Szyfr T9 (Dynamiczny Czas + Przesunięcie)</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">
-                Wiadomość zawiera wbudowany znacznik czasu. Każda wysłana wiadomość wygląda inaczej dla AI, ale odbiorca rozkoduje ją w dowolnym momencie.
-            </p>
+            <h2>Kryptograficzny Szyfr T9 (Dynamiczny Czas)</h2>
             
             <div style="margin-bottom: 15px;">
                 <label for="secret-key">Wspólne Hasło / Prawidło (opcjonalne):</label>
@@ -147,7 +144,7 @@
                     <textarea id="plain-text" placeholder="Wpisz treść do wysłania..." oninput="encrypt()"></textarea>
                 </div>
                 <div class="input-group">
-                    <label for="cipher-code">Gotowy Kod do wysłania na Messengerze:</label>
+                    <label for="cipher-code">Gotowy kod:</label>
                     <textarea id="cipher-code" placeholder="Wklej otrzymany kod..." oninput="decrypt()"></textarea>
                 </div>
             </div>
