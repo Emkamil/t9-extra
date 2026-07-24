@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konwerter T9 TimeShift Messenger</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            margin-bottom: 5px;
+        }
+
+        .author-tag {
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            height: 140px;
+            resize: vertical;
+        }
+
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        footer {
+            margin-top: auto;
+            padding-top: 30px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Konwerter Szyfrów T9</h1>
+        <div class="author-tag">Autor: <strong>Kamil Machowski</strong></div>
+    </header>
+
+    <div class="container">
+
+        <div class="card">
+            <h2>Kryptograficzny Szyfr T9 (Dynamiczny Czas + Przesunięcie)</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Wiadomość zawiera wbudowany znacznik czasu. Każda wysłana wiadomość wygląda inaczej dla AI, ale odbiorca rozkoduje ją w dowolnym momencie.
+            </p>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="secret-key">Wspólne Hasło / Prawidło (opcjonalne):</label>
+                <input type="text" id="secret-key" value="TajneHaslo123" oninput="encrypt()" placeholder="Ustalcie wspólne słowo z odbiorcą...">
+            </div>
+
+            <div class="grid-2">
+                <div class="input-group">
+                    <label for="plain-text">Zwykły Tekst:</label>
+                    <textarea id="plain-text" placeholder="Wpisz treść do wysłania..." oninput="encrypt()"></textarea>
+                </div>
+                <div class="input-group">
+                    <label for="cipher-code">Gotowy Kod do wysłania na Messengerze:</label>
+                    <textarea id="cipher-code" placeholder="Wklej otrzymany kod..." oninput="decrypt()"></textarea>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        &copy; Stworzone przez <strong>Kamil Machowski</strong>
+    </footer>
+
+    <script>
+        const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
+        
+        // Mapowanie T9 Pozycyjne: litera -> [klawisz, pozycja]
+        const T9_POS_MAP = {
+            'a': '21', 'b': '22', 'c': '23',
+            'd': '31', 'e': '32', 'f': '33',
+            'g': '41', 'h': '42', 'i': '43',
+            'j': '51', 'k': '52', 'l': '53',
+            'm': '61', 'n': '62', 'o': '63',
+            'p': '71', 'q': '72', 'r': '73', 's': '74',
+            't': '81', 'u': '82', 'v': '83',
+            'w': '91', 'x': '92', 'y': '93', 'z': '94'
+        };
+
+        const REV_T9_POS_MAP = Object.fromEntries(Object.entries(T9_POS_MAP).map(([k, v]) => [v, k]));
+
+        function removePolishChars(str) {
+            const polishMap = {"ąćęłńóśźżĄĆĘŁŃÓŚŹŻ": "acelnoszzACELNOSZZ"};
+            return str.replace(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, match => 
+                "acelnoszzACELNOSZZ"["ąćęłńóśźżĄĆĘŁŃÓŚŹŻ".indexOf(match)]
+            );
+        }
+
+        // Prosty algorytm mieszający (hash) na potrzeby przeliczania przesunięcia
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = (hash << 5) - hash + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+
+        // Szyfrowanie
+        function encrypt() {
+            let input = removePolishChars(document.getElementById('plain-text').value).toLowerCase();
+            if (!input.trim()) {
+                document.getElementById('cipher-code').value = '';
+                return;
+            }
+
+            let userKey = document.getElementById('secret-key').value || 'default';
+            
+            // Znacznik czasu (w sekundach Unix Hex)
+            let timeStamp = Math.floor(Date.now() / 1000);
+            let timeHeader = timeStamp.toString(16).toUpperCase(); // np. "662A1F80"
+
+            let baseSeed = hashString(timeHeader + userKey);
+            let words = input.split(/\s+/);
+            let globalCharIndex = 0;
+
+            let encryptedWords = words.map(word => {
+                let encWord = '';
+                for (let char of word) {
+                    if (ALPHABET.includes(char)) {
+                        let originalIdx = ALPHABET.indexOf(char);
+                        
+                        // Przesunięcie wyliczane dynamicznie ze znacznika czasu, hasła i pozycji litery
+                        let shift = (baseSeed + globalCharIndex * 7) % 26;
+                        let shiftedIdx = (originalIdx + shift) % 26;
+                        let shiftedChar = ALPHABET[shiftedIdx];
+                        
+                        encWord += T9_POS_MAP[shiftedChar];
+                        globalCharIndex++;
+                    }
+                }
+                return encWord;
+            }).filter(w => w.length > 0);
+
+            // Zapisujemy wiadomość w formacie: [NAGŁÓWEK_CZASOWY]-[SZYFR_T9]
+            document.getElementById('cipher-code').value = timeHeader + '-' + encryptedWords.join(' ');
+        }
+
+        // Deszyfrowanie
+        function decrypt() {
+            let input = document.getElementById('cipher-code').value.trim();
+            if (!input) {
+                document.getElementById('plain-text').value = '';
+                return;
+            }
+
+            let userKey = document.getElementById('secret-key').value || 'default';
+            
+            // Podział wiadomości na nagłówek i treść
+            let parts = input.split('-');
+            if (parts.length < 2) {
+                document.getElementById('plain-text').value = '[Błąd: Nieprawidłowy format wiadomości]';
+                return;
+            }
+
+            let timeHeader = parts[0];
+            let cipherBody = parts.slice(1).join('-');
+
+            let baseSeed = hashString(timeHeader + userKey);
+            let words = cipherBody.split(/\s+/);
+            let globalCharIndex = 0;
+
+            let decryptedWords = words.map(word => {
+                let pairs = word.match(/.{1,2}/g) || [];
+                let decWord = '';
+                
+                for (let pair of pairs) {
+                    let shiftedChar = REV_T9_POS_MAP[pair];
+                    if (shiftedChar) {
+                        let shiftedIdx = ALPHABET.indexOf(shiftedChar);
+                        let shift = (baseSeed + globalCharIndex * 7) % 26;
+                        let originalIdx = (shiftedIdx - shift + 26) % 26;
+                        
+                        decWord += ALPHABET[originalIdx];
+                        globalCharIndex++;
+                    } else {
+                        decWord += '?';
+                    }
+                }
+                return decWord;
+            });
+
+            document.getElementById('plain-text').value = decryptedWords.join(' ');
+        }
+    </script>
+</body>
+</html>
